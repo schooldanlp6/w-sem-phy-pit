@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/home/danlp6/Repos/w-sem-phy/build/CMakeFiles/bootloader
+/home/danlp6/Repos/w-sem-phy/build/CMakeFiles/bootloader.rule
+/home/danlp6/Repos/w-sem-phy/build/CMakeFiles/bootloader-complete.rule
+/home/danlp6/Repos/w-sem-phy/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/home/danlp6/Repos/w-sem-phy/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/danlp6/Repos/w-sem-phy/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/danlp6/Repos/w-sem-phy/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/danlp6/Repos/w-sem-phy/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/danlp6/Repos/w-sem-phy/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/danlp6/Repos/w-sem-phy/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

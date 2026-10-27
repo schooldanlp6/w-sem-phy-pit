@@ -1,0 +1,2 @@
+source /home/danlp6/Repos/w-sem-phy/build/bootloader/gdbinit/symbols
+source /home/danlp6/Repos/w-sem-phy/build/bootloader/gdbinit/connect
