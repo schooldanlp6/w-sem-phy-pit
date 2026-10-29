@@ -20,6 +20,8 @@ static esp_lcd_panel_handle_t s_panel;
 bool oled_init(void)
 {
     i2c_master_bus_handle_t bus = NULL;
+    esp_lcd_panel_io_handle_t io = NULL;
+    esp_err_t err;
     const i2c_master_bus_config_t bus_config = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .glitch_ignore_cnt = 7,
@@ -28,15 +30,20 @@ bool oled_init(void)
         .scl_io_num = CONFIG_OLED_SCL_GPIO,
         .flags.enable_internal_pullup = true,
     };
-    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &bus));
-
-    if (i2c_master_probe(bus, CONFIG_OLED_I2C_ADDR, 100) != ESP_OK) {
-        ESP_LOGE(TAG, "No OLED at I2C address 0x%02X (SDA=GPIO%d, SCL=GPIO%d)",
-                 CONFIG_OLED_I2C_ADDR, CONFIG_OLED_SDA_GPIO, CONFIG_OLED_SCL_GPIO);
-        return false;
+    err = i2c_new_master_bus(&bus_config, &bus);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not create I2C bus: %s", esp_err_to_name(err));
+        goto fail;
     }
 
-    esp_lcd_panel_io_handle_t io = NULL;
+    err = i2c_master_probe(bus, CONFIG_OLED_I2C_ADDR, 100);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "No OLED at I2C address 0x%02X (SDA=GPIO%d, SCL=GPIO%d): %s",
+                 CONFIG_OLED_I2C_ADDR, CONFIG_OLED_SDA_GPIO, CONFIG_OLED_SCL_GPIO,
+                 esp_err_to_name(err));
+        goto fail;
+    }
+
     const esp_lcd_panel_io_i2c_config_t io_config = {
         .dev_addr = CONFIG_OLED_I2C_ADDR,
         .scl_speed_hz = OLED_I2C_SPEED_HZ,
@@ -45,7 +52,11 @@ bool oled_init(void)
         .lcd_param_bits = 8,
         .dc_bit_offset = 6,
     };
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(bus, &io_config, &io));
+    err = esp_lcd_new_panel_io_i2c(bus, &io_config, &io);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not create OLED I2C interface: %s", esp_err_to_name(err));
+        goto fail;
+    }
 
     esp_lcd_panel_ssd1306_config_t ssd1306_config = {
         .height = CONFIG_OLED_HEIGHT,
@@ -55,21 +66,53 @@ bool oled_init(void)
         .reset_gpio_num = -1,
         .vendor_config = &ssd1306_config,
     };
-    ESP_ERROR_CHECK(esp_lcd_new_panel_ssd1306(io, &panel_config, &s_panel));
-    ESP_ERROR_CHECK(esp_lcd_panel_reset(s_panel));
-    ESP_ERROR_CHECK(esp_lcd_panel_init(s_panel));
+    err = esp_lcd_new_panel_ssd1306(io, &panel_config, &s_panel);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not create SSD1306 panel: %s", esp_err_to_name(err));
+        goto fail;
+    }
+    err = esp_lcd_panel_reset(s_panel);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not reset OLED: %s", esp_err_to_name(err));
+        goto fail;
+    }
+    err = esp_lcd_panel_init(s_panel);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not initialize OLED: %s", esp_err_to_name(err));
+        goto fail;
+    }
 #if CONFIG_OLED_ROTATE_180
-    ESP_ERROR_CHECK(esp_lcd_panel_mirror(s_panel, true, true));
+    err = esp_lcd_panel_mirror(s_panel, true, true);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not rotate OLED: %s", esp_err_to_name(err));
+        goto fail;
+    }
 #endif
-    ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(s_panel, true));
+    err = esp_lcd_panel_disp_on_off(s_panel, true);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Could not turn on OLED: %s", esp_err_to_name(err));
+        goto fail;
+    }
 
     ESP_LOGI(TAG, "SSD1306 128x%d ready at 0x%02X", CONFIG_OLED_HEIGHT, CONFIG_OLED_I2C_ADDR);
     return true;
+
+fail:
+    if (s_panel != NULL) {
+        esp_lcd_panel_del(s_panel);
+        s_panel = NULL;
+    }
+    if (io != NULL) {
+        esp_lcd_panel_io_del(io);
+    }
+    if (bus != NULL) {
+        i2c_del_master_bus(bus);
+    }
+    return false;
 }
 
 void oled_flush(const uint8_t *fb)
 {
-    /* A 128x32 panel only shows the upper half of the 128x64 buffer. */
     esp_err_t err = esp_lcd_panel_draw_bitmap(s_panel, 0, 0, DISP_W, CONFIG_OLED_HEIGHT, fb);
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "draw failed: %s", esp_err_to_name(err));

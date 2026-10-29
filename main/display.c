@@ -5,7 +5,7 @@
 
 #include "font5x7.h"
 
-/* Screen layout (y coordinates) */
+/* 128x64 screen layout (y coordinates) */
 #define Y_HEADER  0
 #define Y_BIG     10    /* scale 3 -> 21 px high */
 #define Y_BAR     33
@@ -81,9 +81,17 @@ static void text_centered(uint8_t *fb, int y, const char *s, int scale)
     disp_text(fb, (DISP_W - disp_text_width(s, scale)) / 2, y, s, scale);
 }
 
-static void render_no_data(uint8_t *fb, const disp_radar_cfg_t *cfg)
+static void render_no_data(uint8_t *fb, const disp_radar_cfg_t *cfg, int height)
 {
     char line[24];
+
+    if (height == 32) {
+        disp_text(fb, 0, 0, "LD2450 keine Daten", 1);
+        text_centered(fb, 9, "----", 2);
+        snprintf(line, sizeof(line), "TX>RX%d RX>TX%d", cfg->rx_gpio, cfg->tx_gpio);
+        disp_text(fb, 0, 25, line, 1);
+        return;
+    }
 
     disp_text(fb, 0, Y_HEADER, "LD2450  keine Daten", 1);
     text_centered(fb, Y_BIG, "----", 3);
@@ -95,18 +103,41 @@ static void render_no_data(uint8_t *fb, const disp_radar_cfg_t *cfg)
 }
 
 void disp_render_radar(uint8_t *fb, const ld2450_frame_t *f, bool have_data,
-                       const disp_radar_cfg_t *cfg)
+                       const disp_radar_cfg_t *cfg, int height,
+                       uint32_t filtered_nearest_distance_mm)
 {
     char line[24];
 
     disp_clear(fb);
     if (!have_data) {
-        render_no_data(fb, cfg);
+        render_no_data(fb, cfg, height);
         return;
     }
 
     int count = ld2450_active_count(f);
     int nearest = ld2450_nearest(f);
+
+    if (height == 32) {
+        snprintf(line, sizeof(line), "Ziele:%d  LD2450", count);
+        disp_text(fb, 0, 0, line, 1);
+        if (nearest < 0) {
+            text_centered(fb, 9, "--", 2);
+            disp_text(fb, 0, 25, "kein Ziel", 1);
+            return;
+        }
+
+        const ld2450_target_t *t = &f->t[nearest];
+        float distance_m = filtered_nearest_distance_mm > 0
+                               ? filtered_nearest_distance_mm / 1000.0f
+                               : ld2450_distance_m(t);
+        snprintf(line, sizeof(line), "%s%.2fm",
+                 filtered_nearest_distance_mm > 0 ? "~" : "", distance_m);
+        text_centered(fb, 7, line, 2);
+        snprintf(line, sizeof(line), "%4.0f deg %s", ld2450_angle_deg(t),
+                 ld2450_direction_short(t));
+        disp_text(fb, 0, 25, line, 1);
+        return;
+    }
 
     snprintf(line, sizeof(line), "Ziele: %d", count);
     disp_text(fb, 0, Y_HEADER, line, 1);
@@ -121,8 +152,11 @@ void disp_render_radar(uint8_t *fb, const ld2450_frame_t *f, bool have_data,
         return;
     }
 
-    float d = ld2450_distance_m(&f->t[nearest]);
-    snprintf(line, sizeof(line), "%.2fm", d);
+    float d = filtered_nearest_distance_mm > 0
+                  ? filtered_nearest_distance_mm / 1000.0f
+                  : ld2450_distance_m(&f->t[nearest]);
+    snprintf(line, sizeof(line), "%s%.2fm",
+             filtered_nearest_distance_mm > 0 ? "~" : "", d);
     text_centered(fb, Y_BIG, line, 3);
 
     int d_mm = (int)(d * 1000.0f);

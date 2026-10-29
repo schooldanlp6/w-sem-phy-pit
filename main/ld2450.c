@@ -104,6 +104,38 @@ int ld2450_nearest(const ld2450_frame_t *f)
     return best;
 }
 
+void ld2450_range_filter_reset(ld2450_range_filter_t *filter)
+{
+    memset(filter, 0, sizeof(*filter));
+}
+
+uint32_t ld2450_range_filter_update(ld2450_range_filter_t *filter, uint32_t distance_mm)
+{
+    uint32_t sorted[LD2450_RANGE_FILTER_SAMPLES];
+    filter->samples_mm[filter->next] = distance_mm;
+    filter->next = (uint8_t)((filter->next + 1) % LD2450_RANGE_FILTER_SAMPLES);
+    if (filter->count < LD2450_RANGE_FILTER_SAMPLES) {
+        filter->count++;
+    }
+
+    memcpy(sorted, filter->samples_mm, filter->count * sizeof(sorted[0]));
+    for (uint8_t i = 1; i < filter->count; i++) {
+        uint32_t value = sorted[i];
+        uint8_t j = i;
+        while (j > 0 && sorted[j - 1] > value) {
+            sorted[j] = sorted[j - 1];
+            j--;
+        }
+        sorted[j] = value;
+    }
+
+    uint8_t middle = filter->count / 2;
+    if ((filter->count & 1) != 0) {
+        return sorted[middle];
+    }
+    return (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
 const char *ld2450_direction(const ld2450_target_t *t)
 {
     if (t->speed_cms > SPEED_THRESHOLD_CMS) {

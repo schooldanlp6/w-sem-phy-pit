@@ -175,18 +175,18 @@ static void preview(void)
 
     make_frame(buf, targets);
     ld2450_decode_frame(buf, &f);
-    disp_render_radar(fb, &f, true, &cfg);
+    disp_render_radar(fb, &f, true, &cfg, 64, 0);
     print_screen("3 targets:", fb);
 
     ld2450_decode_frame(DATASHEET_FRAME, &f);
-    disp_render_radar(fb, &f, true, &cfg);
+    disp_render_radar(fb, &f, true, &cfg, 64, 0);
     print_screen("Datasheet frame (1 target):", fb);
 
     memset(&f, 0, sizeof(f));
-    disp_render_radar(fb, &f, true, &cfg);
+    disp_render_radar(fb, &f, true, &cfg, 64, 0);
     print_screen("Radar OK, nobody in range:", fb);
 
-    disp_render_radar(fb, &f, false, &cfg);
+    disp_render_radar(fb, &f, false, &cfg, 64, 0);
     print_screen("No data from radar:", fb);
 }
 

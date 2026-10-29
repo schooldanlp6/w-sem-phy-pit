@@ -16,6 +16,7 @@
 
 #define LD2450_FRAME_LEN   30
 #define LD2450_MAX_TARGETS 3
+#define LD2450_RANGE_FILTER_SAMPLES 5
 
 typedef struct {
     int16_t x_mm;           /* lateral offset from the sensor axis */
@@ -35,6 +36,12 @@ typedef struct {
     uint32_t bad_frames;    /* frames with a broken tail */
 } ld2450_parser_t;
 
+typedef struct {
+    uint32_t samples_mm[LD2450_RANGE_FILTER_SAMPLES];
+    uint8_t count;
+    uint8_t next;
+} ld2450_range_filter_t;
+
 void ld2450_parser_init(ld2450_parser_t *p);
 
 /* Feed one received byte. Returns true and fills *out when a complete,
@@ -50,6 +57,8 @@ float ld2450_distance_m(const ld2450_target_t *t);
 float ld2450_angle_deg(const ld2450_target_t *t);
 int ld2450_active_count(const ld2450_frame_t *f);
 int ld2450_nearest(const ld2450_frame_t *f);   /* index, -1 if none */
+void ld2450_range_filter_reset(ld2450_range_filter_t *filter);
+uint32_t ld2450_range_filter_update(ld2450_range_filter_t *filter, uint32_t distance_mm);
 
 /* Movement direction as text: long form for serial, short for the OLED. */
 const char *ld2450_direction(const ld2450_target_t *t);

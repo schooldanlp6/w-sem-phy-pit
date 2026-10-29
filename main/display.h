@@ -29,6 +29,8 @@ void disp_rect(uint8_t *fb, int x, int y, int w, int h);
 void disp_text(uint8_t *fb, int x, int y, const char *s, int scale);
 int disp_text_width(const char *s, int scale);
 
-/* Draw the complete radar screen. have_data = false shows a wiring hint. */
+/* Draw the radar screen for a 32- or 64-pixel-high OLED.
+ * have_data = false shows a wiring hint. */
 void disp_render_radar(uint8_t *fb, const ld2450_frame_t *f, bool have_data,
-                       const disp_radar_cfg_t *cfg);
+                       const disp_radar_cfg_t *cfg, int height,
+                       uint32_t filtered_nearest_distance_mm);

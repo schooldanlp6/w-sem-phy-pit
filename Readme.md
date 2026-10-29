@@ -131,6 +131,11 @@ Ziele: 3              LD2450     <- number of targets
 If no frame arrives for 1 s the OLED shows `----` and the wiring hint
 `Radar TX -> GPIO16 / Radar RX -> GPIO17`.
 
+For a 128x32 OLED, the compact layout shows the target count, nearest distance,
+angle, and movement direction. When radar data is unavailable, it shows the
+UART wiring pins. The 128x32 layout omits the proximity bar and per-target list
+to keep the distance readable.
+
 ### Serial monitor (115200 baud, at most every 0.5 s)
 
 ```
@@ -220,9 +225,18 @@ That means the decoding is correct. The poor feel came from **how the sensor was
 - **Distance** is calculated from X and Y. Y is straight ahead and X is the sideways offset.
 - **Speed** is only movement **toward or away from** the sensor (Doppler), in steps of
   8 cm/s. Walking sideways shows as 0 ("steht still").
-- **Aufloesung (resolution)** is always 360 mm. This is the radar's fixed distance step
-  (roughly how far apart two targets must be to be told apart). It is **not** the measurement
-  error of a single reading.
+- **Aufloesung (resolution)** is a range-bin size reported with each target. Hi-Link's manual
+  example reports 320 mm; this field is **not** the measurement error of a single reading or a
+  guarantee that every distance is accurate to that amount. The manual does not give a numeric
+  distance-accuracy guarantee. See the [official LD2450 manual](https://h.hlktech.com/download/HLK-LD2450-24G/1/HLK%20LD2450%201T2R%E8%BF%90%E5%8A%A8%E7%9B%AE%E6%A0%87%E6%A3%80%E6%B5%8B%E8%BF%BD%E8%B8%AA%E6%A8%A1%E7%BB%84%E8%AF%B4%E6%98%8E%E4%B9%A6%20V1.02%20.pdf).
+
+The nearest distance shown on the OLED and in the serial output uses a rolling median of the last
+five radar frames (about half a second at the sensor's 10 Hz update rate). This suppresses short
+spikes and steadies the reading; it can add a few tenths of a second of lag and **does not correct
+a consistent distance bias**. For calibration, compare the filtered reading with a tape measure
+at several known distances, directly in front of the sensor. Those measurements can reveal a
+stable offset; this firmware does not yet apply a calibration correction. Changing the filter
+cannot make the radar's underlying ranging more accurate.
 
 ### How to measure the Messungenauigkeit
 
@@ -236,8 +250,7 @@ The module does not report its own error, so you measure it:
    - **standard deviation** = random jitter. This is the "±" you write after a value.
 4. Repeat at different distances and angles. The error usually grows with distance and angle.
 
-Not built yet, but possible: a measuring mode that shows mean ± standard deviation on the OLED,
-and smoothing of the displayed distance.
+Not built yet: a measuring mode that shows mean ± standard deviation on the OLED.
 
 ### Humans or objects?
 
@@ -285,9 +298,9 @@ the exact distance to whatever is straight in front.
 
 ### Of this firmware
 
-- **The large OLED number can jump between targets.** It always shows the *nearest* of up to 3
-  targets. If two targets are at similar distances, "nearest" can switch from one reading
-  to the next, and the number jumps although nothing moved. Possible fix (not built yet):
-  averaging, or staying on the same target unless another is clearly closer.
+- **The nearest distance is median-filtered across five frames.** Short spikes are suppressed,
+  but the reading can lag actual movement by a few tenths of a second. If the nearest target
+  changes, the filter resets when the target slot changes; the radar can still reassign a target
+  within the same slot, so a jump between targets may remain.
 - **Serial output is limited to every 0.5 s.** The radar sends about 10 frames/s, so the serial log
   shows only about every 5th frame. The OLED updates every 0.1 s.

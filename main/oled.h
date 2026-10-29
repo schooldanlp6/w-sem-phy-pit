@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Returns false if no display answers on the configured I2C address. */
+/* Returns false on any OLED setup failure; radar operation can continue. */
 bool oled_init(void);
 
 /* Send a DISP_FB_SIZE frame buffer (see display.h) to the panel. */
